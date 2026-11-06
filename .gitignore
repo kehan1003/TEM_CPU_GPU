@@ -1,0 +1,16 @@
+# 运行时生成的东西
+__pycache__/
+*.pyc
+
+# 日志、运行时标记
+*.log
+dashboard/lhm.lock
+dashboard/lhm.stop
+dashboard/server.pid
+
+# 快捷方式：每台机器上 pythonw.exe 路径不同，由 dashboard/setup.bat 本地生成
+*.lnk
+
+# 渲染校验的中间产物（PPM 只是中间格式，PNG 才留）
+*.ppm
+tools/live.json

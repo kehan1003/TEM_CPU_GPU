@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SYSTEM MONITOR</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #05080c; overflow: hidden;
+  }
+  #c {
+    display: block;
+    width: 100vw; height: 100vh;
+    object-fit: contain;
+    background: #080C12;
+  }
+  body.idle { cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- 画面尺寸固定 1920×1080（设计基准），CSS 按窗口等比缩放 -->
+<script src="font.js"></script>
+<script src="render.js"></script>
+<script>
+"use strict";
+
+const DEMO = {
+  seq: 1234,
+  cpu_load: 37, cpu_temp_c10: 612, cpu_clk: 3800,
+  mem_load: 62, mem_used: 12800, mem_total: 32768,
+  gpu_load: 88, gpu_temp_c10: 735, gpu_used: 5120, gpu_total: 16384, gpu_power: 118.0,
+  alive: true,
+};
+
+const params = new URLSearchParams(location.search);
+const W = parseInt(params.get("w") || "1920", 10);
+const H = parseInt(params.get("h") || "1080", 10);
+const DEMO_MODE = params.get("demo") === "1";
+
+const canvas = document.getElementById("c");
+canvas.width = W;
+canvas.height = H;
+const ctx = canvas.getContext("2d", { alpha: false });
+
+let data = DEMO_MODE ? DEMO : null;
+let linkOk = DEMO_MODE;
+
+function paint() {
+  render(ctx, data, linkOk, W, H);
+}
+
+async function poll() {
+  try {
+    const res = await fetch("api/stats", { cache: "no-store" });
+    if (!res.ok) throw new Error("http " + res.status);
+    const j = await res.json();
+    data = j;
+    linkOk = j.alive !== false;
+  } catch (e) {
+    linkOk = false;              /* 服务没了就显示 NO SIGNAL，不留白屏 */
+  }
+  paint();
+}
+
+if (DEMO_MODE) {
+  paint();
+  setInterval(paint, 1000);
+} else {
+  /* 用 setTimeout 串起来，避免上一次 fetch 还没回来就发下一次 */
+  (async function loop() {
+    await poll();
+    setTimeout(loop, 500);
+  })();
+}
+
+/* 鼠标 3 秒不动就把光标藏起来（全屏看板别有个箭头杵在那） */
+let idleTimer = null;
+function wake() {
+  document.body.classList.remove("idle");
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => document.body.classList.add("idle"), 3000);
+}
+window.addEventListener("mousemove", wake);
+wake();
+
+/* 按 F 或双击切全屏；Esc 退出全屏 */
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+}
+window.addEventListener("keydown", e => {
+  if (e.key === "f" || e.key === "F") toggleFullscreen();
+});
+window.addEventListener("dblclick", toggleFullscreen);
+</script>
+</body>
+</html>
